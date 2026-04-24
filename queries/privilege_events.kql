@@ -1,1 +1,25 @@
-sdfsdf
+// privilege_escalation.kql
+// Detects Global Administrator role assignments outside business hours
+// Severity: Critical — immediate SOC review required
+
+AuditLogs
+| where TimeGenerated > ago(1h)
+| where OperationName == "Add member to role"
+| where Result == "success"
+| extend
+    TargetRole   = tostring(TargetResources[0].displayName),
+    TargetUser   = tostring(TargetResources[0].userPrincipalName),
+    InitiatedBy  = tostring(InitiatedBy.user.userPrincipalName),
+    InitiatedIP  = tostring(InitiatedBy.user.ipAddress)
+| where TargetRole contains "Administrator"
+| extend HourOfDay = hourofday(TimeGenerated)
+| extend IsOffHours = HourOfDay !between (8 .. 18)
+| project
+    TimeGenerated,
+    InitiatedBy,
+    InitiatedIP,
+    TargetUser,
+    TargetRole,
+    IsOffHours,
+    Result
+| order by TimeGenerated desc
