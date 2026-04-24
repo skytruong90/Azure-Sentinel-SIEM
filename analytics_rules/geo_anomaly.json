@@ -1,1 +1,49 @@
-sdfsdf
+{
+  "name": "Impossible Travel / Geo Anomaly Detection",
+  "description": "Detects authentication from two geographically distant locations within an impossible travel timeframe.",
+  "severity": "High",
+  "enabled": true,
+  "query": "SigninLogs | where TimeGenerated > ago(1h) | where ResultType == 0 | extend GeoInfo = parse_json(LocationDetails) | summarize Locations = make_set(tostring(GeoInfo.countryOrRegion)), IPList = make_set(IPAddress) by UserPrincipalName | where array_length(Locations) > 1",
+  "queryFrequency": "PT1H",
+  "queryPeriod": "PT1H",
+  "triggerOperator": "GreaterThan",
+  "triggerThreshold": 0,
+  "suppressionDuration": "PT2H",
+  "suppressionEnabled": false,
+  "tactics": [
+    "InitialAccess",
+    "DefenseEvasion"
+  ],
+  "techniques": [
+    "T1078"
+  ],
+  "incidentConfiguration": {
+    "createIncident": true,
+    "groupingConfiguration": {
+      "enabled": true,
+      "reopenClosedIncident": false,
+      "lookbackDuration": "PT1H",
+      "matchingMethod": "AllEntities"
+    }
+  },
+  "entityMappings": [
+    {
+      "entityType": "Account",
+      "fieldMappings": [
+        {
+          "identifier": "FullName",
+          "columnName": "UserPrincipalName"
+        }
+      ]
+    },
+    {
+      "entityType": "IP",
+      "fieldMappings": [
+        {
+          "identifier": "Address",
+          "columnName": "IPList"
+        }
+      ]
+    }
+  ]
+}
