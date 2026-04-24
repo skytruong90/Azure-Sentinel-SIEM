@@ -1,1 +1,49 @@
-fsdfsdf
+{
+  "name": "Brute Force Attack Detection",
+  "description": "Detects brute force attacks via 10+ failed login attempts from a single IP within 5 minutes.",
+  "severity": "High",
+  "enabled": true,
+  "query": "SecurityEvent | where EventID == 4625 | where TimeGenerated > ago(5m) | summarize FailedAttempts = count() by IpAddress, Account | where FailedAttempts > 10",
+  "queryFrequency": "PT5M",
+  "queryPeriod": "PT5M",
+  "triggerOperator": "GreaterThan",
+  "triggerThreshold": 0,
+  "suppressionDuration": "PT1H",
+  "suppressionEnabled": false,
+  "tactics": [
+    "CredentialAccess"
+  ],
+  "techniques": [
+    "T1110"
+  ],
+  "alertRuleTemplateName": null,
+  "incidentConfiguration": {
+    "createIncident": true,
+    "groupingConfiguration": {
+      "enabled": true,
+      "reopenClosedIncident": false,
+      "lookbackDuration": "PT5M",
+      "matchingMethod": "AllEntities"
+    }
+  },
+  "entityMappings": [
+    {
+      "entityType": "IP",
+      "fieldMappings": [
+        {
+          "identifier": "Address",
+          "columnName": "IpAddress"
+        }
+      ]
+    },
+    {
+      "entityType": "Account",
+      "fieldMappings": [
+        {
+          "identifier": "Name",
+          "columnName": "Account"
+        }
+      ]
+    }
+  ]
+}
