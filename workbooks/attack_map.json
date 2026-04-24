@@ -1,1 +1,82 @@
-sdfs
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "# 🌐 Global Attack Map\n\nReal-time visualization of failed authentication attempts mapped to geographic origin.\n\n---"
+      },
+      "name": "title"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "timeRange",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "type": 4,
+            "value": {
+              "durationMs": 86400000
+            },
+            "label": "Time Range"
+          }
+        ]
+      },
+      "name": "parameters"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "SecurityEvent\n| where EventID == 4625\n| where TimeGenerated {TimeRange}\n| where isnotempty(IpAddress)\n| where IpAddress !startswith \"10.\"\n| where IpAddress !startswith \"192.168.\"\n| where IpAddress !startswith \"172.\"\n| extend GeoInfo = geo_info_from_ip_address(IpAddress)\n| summarize AttackCount = count() by\n    Country   = tostring(GeoInfo.country),\n    Latitude  = tostring(GeoInfo.latitude),\n    Longitude = tostring(GeoInfo.longitude)\n| where isnotempty(Country)\n| extend Latitude = todouble(Latitude), Longitude = todouble(Longitude)\n| order by AttackCount desc",
+        "size": 0,
+        "title": "Global Attack Origins",
+        "visualization": "map",
+        "mapSettings": {
+          "locInfo": "LatLong",
+          "latitude": "Latitude",
+          "longitude": "Longitude",
+          "sizeSettings": "AttackCount",
+          "sizeAggregation": "Sum",
+          "legendMetric": "AttackCount",
+          "legendAggregation": "Sum",
+          "itemColorSettings": {
+            "nodeColorField": "AttackCount",
+            "colorAggregation": "Sum",
+            "type": "heatmap",
+            "heatmapPalette": "redGreen"
+          }
+        }
+      },
+      "name": "attack_map"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "SecurityEvent\n| where EventID == 4625\n| where TimeGenerated {TimeRange}\n| extend GeoInfo = geo_info_from_ip_address(IpAddress)\n| summarize AttackCount = count() by Country = tostring(GeoInfo.country)\n| where isnotempty(Country)\n| top 10 by AttackCount desc",
+        "size": 0,
+        "title": "Top 10 Attack Source Countries",
+        "visualization": "barchart"
+      },
+      "name": "top_countries"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "SecurityEvent\n| where EventID == 4625\n| where TimeGenerated {TimeRange}\n| summarize FailedAttempts = count() by bin(TimeGenerated, 1h)\n| order by TimeGenerated asc",
+        "size": 0,
+        "title": "Failed Login Attempts Over Time",
+        "visualization": "timechart"
+      },
+      "name": "timeline"
+    }
+  ],
+  "styleSettings": {},
+  "fromTemplateId": "sentinel-attack-map",
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}
