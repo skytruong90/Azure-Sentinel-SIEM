@@ -1,1 +1,27 @@
-sdfsdf
+// failed_logins.kql
+// Detects brute force attacks via repeated failed authentication attempts
+// Trigger: 10+ failures from a single IP within 5 minutes
+// Severity: High
+
+SecurityEvent
+| where EventID == 4625                          // Windows failed logon event
+| where TimeGenerated > ago(5m)
+| summarize
+    FailedAttempts = count(),
+    FirstAttempt   = min(TimeGenerated),
+    LastAttempt    = max(TimeGenerated),
+    Accounts       = make_set(Account)
+    by IpAddress
+| where FailedAttempts > 10
+| extend GeoInfo = geo_info_from_ip_address(IpAddress)
+| project
+    FirstAttempt,
+    LastAttempt,
+    IpAddress,
+    FailedAttempts,
+    Accounts,
+    Country   = tostring(GeoInfo.country),
+    State     = tostring(GeoInfo.state),
+    Latitude  = tostring(GeoInfo.latitude),
+    Longitude = tostring(GeoInfo.longitude)
+| order by FailedAttempts desc
