@@ -1,1 +1,27 @@
-dfsf
+# Terraform
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.tfvars
+!example.tfvars
+crash.log
+
+# Secrets — never commit
+*.pem
+*.key
+secrets.txt
+.env
+*.tfvars
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Screenshots (add your own)
+screenshots/*.png
+screenshots/*.jpg
