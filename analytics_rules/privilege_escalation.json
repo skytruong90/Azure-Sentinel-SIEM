@@ -1,1 +1,39 @@
-sdfsdf
+{
+  "name": "Privilege Escalation — Admin Role Assignment Off-Hours",
+  "description": "Detects Global Administrator role assignments occurring outside business hours (08:00–18:00). Severity: Critical.",
+  "severity": "High",
+  "enabled": true,
+  "query": "AuditLogs | where OperationName == 'Add member to role' | where Result == 'success' | extend TargetRole = tostring(TargetResources[0].displayName) | where TargetRole contains 'Administrator' | extend HourOfDay = hourofday(TimeGenerated) | where HourOfDay !between (8 .. 18)",
+  "queryFrequency": "PT1H",
+  "queryPeriod": "PT1H",
+  "triggerOperator": "GreaterThan",
+  "triggerThreshold": 0,
+  "suppressionDuration": "PT4H",
+  "suppressionEnabled": false,
+  "tactics": [
+    "PrivilegeEscalation"
+  ],
+  "techniques": [
+    "T1078.004"
+  ],
+  "incidentConfiguration": {
+    "createIncident": true,
+    "groupingConfiguration": {
+      "enabled": true,
+      "reopenClosedIncident": false,
+      "lookbackDuration": "PT1H",
+      "matchingMethod": "AllEntities"
+    }
+  },
+  "entityMappings": [
+    {
+      "entityType": "Account",
+      "fieldMappings": [
+        {
+          "identifier": "FullName",
+          "columnName": "InitiatedBy"
+        }
+      ]
+    }
+  ]
+}
