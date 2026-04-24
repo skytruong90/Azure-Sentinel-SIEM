@@ -1,1 +1,138 @@
-dsfsdfs
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "Microsoft_Sentinel_incident": {
+        "type": "ApiConnectionWebhook",
+        "inputs": {
+          "body": {
+            "callback_url": "@{listCallbackUrl()}"
+          },
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+            }
+          },
+          "path": "/incident-creation"
+        }
+      }
+    },
+    "actions": {
+      "Parse_Incident_Entities": {
+        "type": "ParseJson",
+        "inputs": {
+          "content": "@triggerBody()?['object']?['properties']?['relatedEntities']",
+          "schema": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": { "type": "string" },
+                "properties": {
+                  "type": "object",
+                  "properties": {
+                    "address": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "For_Each_IP": {
+        "type": "Foreach",
+        "foreach": "@body('Parse_Incident_Entities')",
+        "actions": {
+          "Condition_Is_IP_Entity": {
+            "type": "If",
+            "expression": {
+              "and": [
+                {
+                  "equals": [
+                    "@item()?['kind']",
+                    "Ip"
+                  ]
+                }
+              ]
+            },
+            "actions": {
+              "Block_IP_in_Firewall": {
+                "type": "Http",
+                "inputs": {
+                  "method": "POST",
+                  "uri": "https://management.azure.com/subscriptions/@{parameters('subscriptionId')}/resourceGroups/@{parameters('resourceGroupName')}/providers/Microsoft.Network/networkSecurityGroups/@{parameters('nsgName')}/securityRules/BlockMaliciousIP",
+                  "authentication": {
+                    "type": "ManagedServiceIdentity"
+                  },
+                  "body": {
+                    "properties": {
+                      "priority": 100,
+                      "protocol": "*",
+                      "access": "Deny",
+                      "direction": "Inbound",
+                      "sourceAddressPrefix": "@{item()?['properties']?['address']}",
+                      "sourcePortRange": "*",
+                      "destinationAddressPrefix": "*",
+                      "destinationPortRange": "*"
+                    }
+                  }
+                }
+              },
+              "Notify_SOC_Team": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['office365']['connectionId']"
+                    }
+                  },
+                  "method": "post",
+                  "path": "/v2/Mail",
+                  "body": {
+                    "To": "@parameters('alertEmail')",
+                    "Subject": "[SENTINEL ALERT] Malicious IP Blocked — @{item()?['properties']?['address']}",
+                    "Body": "<p><strong>Azure Sentinel Auto-Response Triggered</strong></p><p>A malicious IP has been automatically blocked.</p><p><strong>IP Address:</strong> @{item()?['properties']?['address']}</p><p><strong>Incident:</strong> @{triggerBody()?['object']?['properties']?['title']}</p><p><strong>Severity:</strong> @{triggerBody()?['object']?['properties']?['severity']}</p><p>Please review the incident in Azure Sentinel for further action.</p>",
+                    "IsHtml": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Add_Comment_to_Incident": {
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+            }
+          },
+          "method": "post",
+          "path": "/Incidents/Comment",
+          "body": {
+            "incidentArmId": "@triggerBody()?['object']?['id']",
+            "message": "🔒 AUTO-RESPONSE: Malicious IP(s) have been blocked via NSG rule and SOC team has been notified."
+          }
+        }
+      }
+    }
+  },
+  "parameters": {
+    "$connections": {
+      "value": {
+        "azuresentinel": {
+          "connectionId": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroup}/providers/Microsoft.Web/connections/azuresentinel",
+          "connectionName": "azuresentinel",
+          "id": "/subscriptions/{subscriptionId}/providers/Microsoft.Web/locations/{location}/managedApis/azuresentinel"
+        },
+        "office365": {
+          "connectionId": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroup}/providers/Microsoft.Web/connections/office365",
+          "connectionName": "office365",
+          "id": "/subscriptions/{subscriptionId}/providers/Microsoft.Web/locations/{location}/managedApis/office365"
+        }
+      }
+    }
+  }
+}
