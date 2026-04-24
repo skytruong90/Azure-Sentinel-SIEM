@@ -1,1 +1,28 @@
-sdfsdf
+// geo_attack_map.kql
+// Maps all failed authentication attempts to geographic coordinates
+// Used to power the global attack visualization workbook
+// Time range: Last 24 hours
+
+SecurityEvent
+| where EventID == 4625
+| where TimeGenerated > ago(24h)
+| where isnotempty(IpAddress)
+| where IpAddress !startswith "10."       // exclude private IPs
+| where IpAddress !startswith "192.168."
+| where IpAddress !startswith "172."
+| extend GeoInfo = geo_info_from_ip_address(IpAddress)
+| summarize
+    AttackCount   = count(),
+    UniqueIPs     = dcount(IpAddress),
+    TargetAccounts = make_set(Account)
+    by
+    Country   = tostring(GeoInfo.country),
+    Latitude  = tostring(GeoInfo.latitude),
+    Longitude = tostring(GeoInfo.longitude)
+| where isnotempty(Country)
+| where isnotempty(Latitude)
+| extend
+    Latitude  = todouble(Latitude),
+    Longitude = todouble(Longitude)
+| order by AttackCount desc
+
